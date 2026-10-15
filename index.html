@@ -568,7 +568,7 @@ function evaluateChain(chain) {
     const r = simulate(base, chain);
     if (!r.alive) continue;
 
-    let bestProc = { name: "None", modString: "", type: "processor" };
+    let bestProc = { name: "[Empty]", modString: "", type: "processor" };
     let bestScore = 0;
     
     const baseM = r.mult * 1 * condMult(base.conds, r.tr);
@@ -822,12 +822,9 @@ function showResult(r) {
   }
 
   out += "\nUpgraders:\n";
-  let last = r.chain.length;
-  while (last > 0 && r.chain[last - 1] < 0) last--;
-  
-  for (let i = 0; i < last; i++) {
+  for (let i = 0; i < NSLOTS; i++) {
     const ui = r.chain[i];
-    out += ui >= 0 ? `${i + 1}. ${inventory[ui].name} ${inventory[ui].modString}\n` : `${i + 1}. -\n`;
+    out += ui >= 0 ? `${i + 1}. ${inventory[ui].name} ${inventory[ui].modString}\n` : `${i + 1}. [Empty]\n`;
   }
 
   const procs = [];
