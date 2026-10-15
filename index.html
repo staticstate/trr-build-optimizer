@@ -568,8 +568,12 @@ function evaluateChain(chain) {
     const r = simulate(base, chain);
     if (!r.alive) continue;
 
-    let bestProc = null;
+    let bestProc = { name: "None", modString: "", type: "processor" };
     let bestScore = 0;
+    
+    const baseM = r.mult * 1 * condMult(base.conds, r.tr);
+    const baseCps = base.cash * dItem.effectiveMult * baseM * refineryMult * incomeMult / base.sec * (1 - r.dprob);
+    bestScore = baseCps;
     
     for (let pIdx = 0; pIdx < inventory.length; pIdx++) {
       const pItem = inventory[pIdx];
@@ -587,8 +591,6 @@ function evaluateChain(chain) {
         bestProc = pItem; 
       }
     }
-    
-    if (!bestProc) continue;
     
     for (let i = 0; i < dItem.quantity; i++) {
       scores.push({ drop: dItem, proc: bestProc, score: bestScore, sec: base.sec, surv: 1 - r.dprob });
@@ -819,6 +821,15 @@ function showResult(r) {
     out += `  [Empty]\n`;
   }
 
+  out += "\nUpgraders:\n";
+  let last = r.chain.length;
+  while (last > 0 && r.chain[last - 1] < 0) last--;
+  
+  for (let i = 0; i < last; i++) {
+    const ui = r.chain[i];
+    out += ui >= 0 ? `${i + 1}. ${inventory[ui].name} ${inventory[ui].modString}\n` : `${i + 1}. -\n`;
+  }
+
   const procs = [];
   for (let i = 0; i < r.top10.length; i++) {
     const d = r.top10[i];
@@ -831,15 +842,6 @@ function showResult(r) {
     for (let i = 0; i < procs.length; i++) {
       out += `  ${procs[i]}\n`;
     }
-  }
-
-  out += "\nUpgraders:\n";
-  let last = r.chain.length;
-  while (last > 0 && r.chain[last - 1] < 0) last--;
-  
-  for (let i = 0; i < last; i++) {
-    const ui = r.chain[i];
-    out += ui >= 0 ? `${i + 1}. ${inventory[ui].name} ${inventory[ui].modString}\n` : `${i + 1}. -\n`;
   }
 
   const refs = [];
@@ -996,7 +998,8 @@ function renderInventory() {
     if (item.type === 'upgrader') {
       d = `${item.modString} (x${item.effectiveMult.toFixed(2)} Multi)`;
     } else if (item.type === 'dropper') {
-      d = `${item.modString} ${DROPPERS[item.baseIndex].cash} Cash / ${DROPPERS[item.baseIndex].sec}s`;
+      const modifiedCash = DROPPERS[item.baseIndex].cash * item.effectiveMult;
+      d = `${item.modString} ${modifiedCash} Cash / ${DROPPERS[item.baseIndex].sec}s`;
     } else if (item.type === 'processor') {
       d = `${item.modString} x${item.effectiveMult.toFixed(1)} Multi`;
     } else {
