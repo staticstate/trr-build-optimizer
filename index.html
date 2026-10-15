@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #121212;
+  --card: rgba(30, 30, 30, 0.85);
+  --bg-image: url("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkaDS2gOmOKJEAtExpMDPX5x1ZziUIo1FQ32J7-76nig&s=10");
+  --bg-dim: 0.55;
+  --border: #333;
+  --accent: #2563eb;
+  --text: #e5e5e5;
+  --muted: #a3a3a3;
+  --red: #dc2626;
+  --green: #16a34a;
+}
+
+html { font-size: 112.5%; }
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover { background: #666; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+body {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 20px;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center 40%;
+  opacity: 0.5;
+}
+
+.container { max-width: 1000px; margin: 0 auto; }
+
+h1 { text-align: center; margin-bottom: 30px; }
+
+h2 {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin-top: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+.row.add { gap: 10px; align-items: flex-end; margin-bottom: 15px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: .8rem; color: var(--muted); }
+
+select, input[type=number], textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: .9rem;
+}
+
+select { min-width: 220px; }
+input[type=number] { width: 80px; }
+
+textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  font-size: .85rem;
+}
+
+.mods {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mods label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+}
+
+.blue { background: var(--accent); }
+.blue:hover { background: #1d4ed8; }
+.green { background: var(--green); }
+.green:hover { background: #15803d; }
+.red { background: var(--red); }
+.red:hover { background: #b91c1c; }
+
+.small { padding: 6px 12px; font-size: .8rem; }
+.big { width: 100%; padding: 14px; font-size: 1.1rem; margin-top: 20px; }
+
+.io { display: flex; gap: 10px; margin-bottom: 15px; }
+.io button { flex: 1; }
+
+#inventoryList {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.item:last-child { border-bottom: 0; }
+.item .info { flex-grow: 1; }
+.item .type { font-size: .75rem; color: var(--muted); text-transform: capitalize; }
+.item .mod { font-size: .8rem; color: var(--accent); }
+.item .quantity { font-size: .85rem; color: var(--muted); margin-right: 15px; }
+
+.empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: .9rem; }
+
+#results {
+  margin-top: 20px;
+  background: #000;
+  border: 1px solid var(--border);
+  padding: 15px;
+  border-radius: 4px;
+  font-size: .9rem;
+  color: #4ade80;
+  white-space: pre-wrap;
+  min-height: 200px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Build Optimizer</h1>
+  <div class="grid">
+    <div class="card">
+      <h2>Configuration</h2>
+      <div class="row">
+        <div class="field">
+          <label>Ore lifetime bonus (%)</label>
+          <input type="number" id="lifeBonus" value="0" min="0" max="65">
+        </div>
+        <div class="field">
+          <label>Income bonus (%)</label>
+          <input type="number" id="incomeBonus" value="0" min="0" max="150">
+        </div>
+      </div>
+
+      <h2>Import/Export</h2>
+      <div class="io">
+        <button class="green" onclick="exportInv()">Export</button>
+        <button class="blue" onclick="importInv()">Import</button>
+      </div>
+      <textarea id="ioText" placeholder="Paste inventory here and click Import, or click Export to generate..."></textarea>
+
+      <h2 style="margin-top:20px">Add to Inventory</h2>
+      <div class="row add">
+        <div class="field">
+          <label>Item</label>
+          <select id="itemSelect"></select>
+        </div>
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number" id="itemQuantity" value="1" min="1" max="99">
+        </div>
+        <div class="field">
+          <label>Modifiers</label>
+          <div class="mods">
+            <label><input type="checkbox" id="modOP"> OP</label>
+            <label><input type="checkbox" id="modN"> N</label>
+            <label><input type="checkbox" id="modH"> H</label>
+          </div>
+        </div>
+        <button class="blue" onclick="addItem()">Add</button>
+      </div>
+      <div id="inventoryList">
+        <div class="empty">No items in inventory. Add items above.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Optimization</h2>
+      <p style="color:var(--muted);font-size:.9rem">Click stop once you're satisfied with the build.</p>
+      <button id="startBtn" class="blue big" onclick="start()">Start</button>
+      <button id="stopBtn" class="red big" onclick="stop()" style="display:none">Stop</button>
+      <div id="results"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WET = 0, ICE = 1, FIRE = 2, ACID = 3, NUC = 4, MAG = 5;
+const AIR = 6, ANC = 7, SLIME = 8, NEB = 9, FUEL = 10;
+const NTRAITS = 11;
+const BASE_LIFE = 8, MAX_LIFE_BONUS = 65, MAX_INCOME_BONUS = 150, NSLOTS = 17;
+
+// might need to change these travel times, gotta measure again
+const TRAVEL = [2.24, 1.65, 3.01, 3.45, 2.80, 2.72, 2.65, 3.25, 3.07, 3.17, 2.88, 2.15, 3.17, 3.29, 5.30, 4.72, 2.73];
+const slotPos = [0, 0];
+for (let k = 1; k <= NSLOTS; k++) {
+  slotPos[k + 1] = slotPos[k] + TRAVEL[k - 1];
+}
+
+const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg", "Uvg", "Dvg", "Tvg", "Qavg", "Qivg", "Sxvg", "Spvg", "Ocvg", "Novg", "Tg", "Utg", "Dtg", "Ttg", "Qatg", "Qitg", "Sxtg", "Sptg", "Octg", "Notg", "Qag", "Uqag", "Dqag", "Tqag"];
+
+const TRAIT_IDS = { 
+  wet: WET, ice: ICE, fire: FIRE, acid: ACID, nuclear: NUC, magnetic: MAG, 
+  aired: AIR, ancient: ANC, slimed: SLIME, nebula: NEB, fueled: FUEL 
+};
+
+function parseAdds(str) {
+  const out = [];
+  for (const part of str.split(';')) {
+    const m = part.trim().match(/^([a-z_]+)(?:\(x(\d+)\))?$/i);
+    if (m && TRAIT_IDS[m[1].toLowerCase()] !== undefined) {
+      out.push({ t: TRAIT_IDS[m[1].toLowerCase()], s: m[2] ? +m[2] : 1 });
+    }
+  }
+  return out;
+}
+
+function parseCond(str) {
+  const out = [];
+  const re = /([\d.]+)x\s+if\s+([a-z]+)/gi;
+  let m;
+  while ((m = re.exec(str))) {
+    const t = TRAIT_IDS[m[2].toLowerCase()];
+    if (t !== undefined) {
+      out.push({ t, m: parseFloat(m[1]) });
+    }
+  }
+  return out;
+}
+
+function createUpgrader(name, mult, odds, adds = "", removes = "", cond = "", destroy = 0, flag = "") {
+  return {
+    name, mult, odds, destroy, flag,
+    adds: parseAdds(adds),
+    conds: parseCond(cond),
+    rmAll: removes === "all",
+    rm: removes.split(';').filter(r => r && r !== "all").map(r => TRAIT_IDS[r])
+  };
+}
+
+function createProcessor(name, mult, odds, cond = "", refuses = "", requires = "") {
+  return {
+    name, mult, odds,
+    conds: parseCond(cond),
+    refuses: refuses ? TRAIT_IDS[refuses] : -1,
+    requires: requires ? TRAIT_IDS[requires] : -1
+  };
+}
+
+function createDropper(name, cash, sec, odds, cond = "", vuln = "", immune = "") {
+  return {
+    name, cash, sec, odds,
+    conds: parseCond(cond),
+    vuln, immune
+  };
+}
+
+const UPGRADERS = [
+  createUpgrader("Copper Upgrader", 1.5, 5),
+  createUpgrader("Ore Scanner", 2, 27, "", "", "1.5x if aired"),
+  createUpgrader("Fire Laser", 2.5, 32, "fire", "wet"),
+  createUpgrader("Blue Simulation", 7, 72, "wet", "fire"),
+  createUpgrader("Coral Sea", 10, 170, "wet(x2)", "fire"),
+  createUpgrader("Ice Wind", 12, 211, "ice"),
+  createUpgrader("Nuclear Waste", 13, 442, "nuclear", "", "", 0.20),
+  createUpgrader("Surge Light", 15, 712, "", "", "1.3x if aired"),
+  createUpgrader("Mystical Swamp", 17, 1750, "slimed", "", "1.3x if slimed", 0.01),
+  createUpgrader("Magnetic Fuser", 18, 2211, "magnetic", "", "", 0, "magfuse"),
+  createUpgrader("Sandy Valley", 21, 3638, "ancient"),
+  createUpgrader("Water Mountain", 25, 5391, "wet", "fire"),
+  createUpgrader("Acid Leak", 31, 6492, "acid", "", "", 0.05),
+  createUpgrader("Northern Lights", 33, 7801, "aired;ice", "fire", "0.5x if nuclear"),
+  createUpgrader("Temple of Silence", 25, 8643, "", "all"),
+  createUpgrader("Death Waste", 35, 11252, "", "", "2x if nuclear", 0, "deathw"),
+  createUpgrader("Sunstone", 37, 19482, "fire(x5)"),
+  createUpgrader("Nuclear Lab", 43, 36812, "nuclear", "acid", "1.5x if nuclear", 0, "nuclab"),
+  createUpgrader("Amethyst Singularity", 50, 50200, "", "", "2x if nebula"),
+  createUpgrader("Creations Studio", 55, 63910, "ice;magnetic;aired"),
+  createUpgrader("Spring Sunshine", 60, 87654, "", "wet;nuclear"),
+  createUpgrader("Storming Summit", 64, 111000, "magnetic", "acid", "1.2x if magnetic"),
+  createUpgrader("Shinigami Realm", 72, 168900, "", "", "1.6x if ancient", 0.25),
+  createUpgrader("Aegis Upgrader", 89, 294222, "nebula", "", "2x if nuclear"),
+  createUpgrader("Infernal Realm", 99, 666666, "fire(x3)", "wet", "1.66x if fire"),
+  createUpgrader("Ancient Gate", 133, 5000000, "fire", "", "1.3x if ancient"),
+  createUpgrader("Hellfire Citadel", 28, 9349, "", "", "1.5x if fire"),
+  createUpgrader("Forgotten Stones", 35, 97137, "", "", "1.1x if wet;1.15x if aired", 0, "forgot"),
+  createUpgrader("Dyson Core", 61, 421540, "", "", "", 0.15, "dyson"),
+  createUpgrader("Stellar Night", 57, 76567, "", "", "1.4x if nebula;1.1x if ice")
+];
+
+const PROCESSORS = [
+  createProcessor("Copper Processor", 1.5, 5),
+  createProcessor("Cardboard Boxes", 2, 36, "", "acid"),
+  createProcessor("Golden Forge", 3, 67, "1.5x if fire"),
+  createProcessor("Magnet Staff", 5, 121, "1.5x if magnetic"),
+  createProcessor("Space Processor", 12, 311, "1.5x if nebula", "", "nebula"),
+  createProcessor("Mushroom Spores", 22, 1582, "2.5x if acid", "", "acid"),
+  createProcessor("Vortex Shrine", 25, 5789, "2.5x if nuclear"),
+  createProcessor("Subzero", 27, 18111, "2x if wet", "fire"),
+  createProcessor("Flying Isles", 41, 58888, "2.5x if aired"),
+  createProcessor("Portal of Blocks", 63, 399996, "2x if fire", "wet"),
+  createProcessor("Hands of Ancient", 91, 2400800, "1.5x if ancient", "fire"),
+  createProcessor("Heavenly Treasures", 47, 123510, "2.3x if magnetic"),
+  createProcessor("Twin Peaks", 28, 12305, "1.9x if ice")
+];
+
+const DROPPERS = [
+  createDropper("Basic Dropper", 5, 5, 3),
+  createDropper("Advanced Dropper", 10, 5, 22),
+  createDropper("Poisoned Dripper", 21, 7, 27, "1.5x if acid", "wet"),
+  createDropper("Coal Drill", 25, 5, 63, "", "", "fire"),
+  createDropper("Electric Drill", 70, 7, 96, "", "wet"),
+  createDropper("Ancient Ruins", 112, 7, 270, "1.2x if ancient", "", "acid"),
+  createDropper("Slime Duper", 120, 6, 303, "1.3x if slimed"),
+  createDropper("Flower Forest", 125, 5, 411, "0.9x if nebula;0.1x if ice", "fire"),
+  createDropper("Sea Dropper", 222, 6, 712, "1.5x if wet", "", "fire"),
+  createDropper("Ice Dropper", 410, 10, 1250, "", "fire"),
+  createDropper("Dupe Error", 525, 7, 2520, "1.5x if nuclear", "acid"),
+  createDropper("Timmy the Tree", 1000, 10, 4001, "1.2x if aired"),
+  createDropper("Shard Harvester", 952, 8, 5780, "1.3x if nebula", "", "nuclear"),
+  createDropper("Steampunk Terminator", 1716, 13, 12120, "1.7x if fueled", "acid"),
+  createDropper("Magical Tree", 1200, 8, 17074, "1.45x if aired", "", "nuclear"),
+  createDropper("Aegis", 2750, 15, 432000, "2.0x if nebula", "", "nuclear"),
+  createDropper("Energy Compressor", 2000, 15, 13281, "1.5x if nebula", "", "fire")
+];
+
+const REFINERIES = [
+  { name: "Normal Refinery", odds: 0.5, mb: 0 },
+  { name: "Water Fountain", odds: 1/12, mb: 0 },
+  { name: "Statue of RNG", odds: 1/25, mb: 0.25 },
+  { name: "Bowling", odds: 1/38, mb: 0 },
+  { name: "Tree of Blocks", odds: 1/75, mb: 0.15 },
+  { name: "Dead Tree", odds: 1/125, mb: 0.10 },
+  { name: "Steampunk Orb", odds: 1/250, mb: 0.20 }
+];
+
+const CATEGORIES = { 
+  dropper: DROPPERS, 
+  upgrader: UPGRADERS, 
+  processor: PROCESSORS, 
+  refinery: REFINERIES 
+};
+
+let inventory = [];
+let running = false;
+let bestResult = null, bestChain = null, bestCash = 0, iterations = 0;
+let lifeLimit = BASE_LIFE, incomeMult = 1, refineryMult = 1;
+let evalCache = new Map();
+let uiUpdateInterval = null;
+let chainCounts = new Int8Array(10000);
+
+// simulation
+
+function condMult(conds, tr) {
+  let m = 1;
+  for (let i = 0; i < conds.length; i++) {
+    if (tr[conds[i].t] > 0) m *= conds[i].m;
+  }
+  return m;
+}
+
+function simulate(d, chain) {
+  const tr = new Int8Array(NTRAITS);
+  let vwet = d.vuln === 'wet', vfire = d.vuln === 'fire', vacid = d.vuln === 'acid', vnuc = false;
+  let ifire = d.immune === 'fire', iacid = d.immune === 'acid', inuc = d.immune === 'nuclear';
+  let alive = true, dprob = 0, mult = 1;
+  let cf = -1, ca = -1, cn = -1;
+
+  for (let sl = 0; sl < NSLOTS && alive; sl++) {
+    const ui = chain[sl];
+    if (ui < 0) continue;
+    const item = inventory[ui], u = UPGRADERS[item.baseIndex], slot = sl + 1;
+    const pf = tr[FIRE], pa = tr[ACID], pn = tr[NUC];
+
+    mult *= item.effectiveMult * condMult(u.conds, tr);
+
+    if (u.rmAll) tr.fill(0);
+    else for (let k = 0; k < u.rm.length; k++) tr[u.rm[k]] = 0;
+
+    for (let k = 0; k < u.adds.length; k++) {
+      const op = u.adds[k];
+      if (!alive) break;
+      if (op.t === FIRE) {
+        for (let i = 0; i < op.s; i++) {
+          if (!alive) break;
+          if (tr[WET] > 0) { tr[WET]--; continue; }
+          if (tr[ICE] > 0) {
+            tr[ICE]--; tr[WET]++;
+            if (vwet) { alive = false; break; }
+            if (i + 1 < op.s) { i++; if (tr[WET] > 0) tr[WET]--; }
+            continue;
+          }
+          if (ifire) continue;
+          if (vfire) { alive = false; break; }
+          tr[FIRE]++;
+          if (cf < 0) cf = slot;
+        }
+      } else if (op.t === WET) {
+        for (let i = 0; i < op.s && alive; i++) {
+          if (vwet) { alive = false; break; }
+          tr[WET]++;
+        }
+      } else if (op.t === ACID || op.t === NUC) {
+        let hazardFailed = false;
+        for (let i = 0; i < op.s; i++) {
+          if (op.t === ACID) {
+            if (iacid) break;
+            if (vacid) { alive = false; hazardFailed = true; break; }
+            tr[ACID]++;
+            if (ca < 0) ca = slot;
+          } else {
+            if (inuc) break;
+            if (vnuc) { alive = false; hazardFailed = true; break; }
+            tr[NUC]++;
+            if (cn < 0) cn = slot;
+          }
+        }
+        if (hazardFailed) break;
+      } else {
+        tr[op.t] += op.s;
+      }
+    }
+    if (!alive) break;
+
+    if (u.flag === 'magfuse' && tr[NUC] > 0) tr[NEB]++;
+    if (u.flag === 'nuclab' && tr[ACID] > 0) {
+      tr[ACID] = 0;
+      if (!inuc) {
+        if (vnuc) { alive = false; break; }
+        tr[NUC]++;
+        if (cn < 0) cn = slot;
+      }
+    }
+    if (u.flag === 'deathw') vwet = true;
+
+    const tCheck = [FIRE, ACID, NUC];
+    const prev = [pf, pa, pn];
+    for (let i = 0; i < 3; i++) {
+      const now = tr[tCheck[i]];
+      if (prev[i] > 0 && now === 0) {
+        let start = (i === 0) ? cf : (i === 1) ? ca : cn;
+        if (start >= 0) {
+          const exposure = slotPos[18] - slotPos[start];
+          if (exposure > lifeLimit) { alive = false; dprob = 1; }
+        }
+        if (i === 0) cf = -1; else if (i === 1) ca = -1; else cn = -1;
+      } else if (prev[i] === 0 && now > 0) {
+        let start = (i === 0) ? cf : (i === 1) ? ca : cn;
+        if (start < 0) {
+          if (i === 0) cf = slot; else if (i === 1) ca = slot; else cn = slot;
+        }
+      }
+    }
+    if (!alive) break;
+
+    if (u.destroy > 0) dprob = 1 - (1 - dprob) * (1 - u.destroy);
+  }
+
+  if (!alive) return { alive: false, mult: 0, dprob: 1, tr: null };
+
+  const tCheckEnd = [FIRE, ACID, NUC];
+  const keyEnd = [cf, ca, cn];
+  for (let i = 0; i < 3; i++) {
+    if (tr[tCheckEnd[i]] > 0) {
+      let start = keyEnd[i];
+      if (start >= 0) {
+        const exposure = slotPos[18] - slotPos[start];
+        if (exposure > lifeLimit) { alive = false; dprob = 1; }
+      }
+    }
+  }
+
+  return { alive, mult, dprob, tr: alive ? tr : null };
+}
+
+function isValidChain(chain) {
+  chainCounts.fill(0);
+  for (let i = 0; i < NSLOTS; i++) {
+    const ui = chain[i];
+    if (ui >= 0) {
+      chainCounts[ui]++;
+      if (chainCounts[ui] > inventory[ui].quantity) return false;
+    }
+  }
+  return true;
+}
+
+function evaluateChain(chain) {
+  const key = chain.join();
+  const cached = evalCache.get(key);
+  if (cached) return cached;
+
+  const scores = [];
+  
+  for (let dIdx = 0; dIdx < inventory.length; dIdx++) {
+    const dItem = inventory[dIdx];
+    if (dItem.type !== 'dropper') continue;
+    const base = DROPPERS[dItem.baseIndex];
+    const r = simulate(base, chain);
+    if (!r.alive) continue;
+
+    let bestProc = null;
+    let bestScore = 0;
+    
+    for (let pIdx = 0; pIdx < inventory.length; pIdx++) {
+      const pItem = inventory[pIdx];
+      if (pItem.type !== 'processor') continue;
+      const p = PROCESSORS[pItem.baseIndex];
+      
+      if (p.refuses >= 0 && r.tr[p.refuses] > 0) continue;
+      if (p.requires >= 0 && r.tr[p.requires] === 0) continue;
+
+      const m = r.mult * pItem.effectiveMult * condMult(p.conds, r.tr) * condMult(base.conds, r.tr);
+      const cps = base.cash * dItem.effectiveMult * m * refineryMult * incomeMult / base.sec * (1 - r.dprob);
+      
+      if (cps > bestScore) { 
+        bestScore = cps; 
+        bestProc = pItem; 
+      }
+    }
+    
+    if (!bestProc) continue;
+    
+    for (let i = 0; i < dItem.quantity; i++) {
+      scores.push({ drop: dItem, proc: bestProc, score: bestScore, sec: base.sec, surv: 1 - r.dprob });
+    }
+  }
+
+  scores.sort((a, b) => b.score - a.score);
+  const top10 = scores.slice(0, 10);
+
+  let oreRate = 0, survived = 0, total = 0;
+  for (let i = 0; i < top10.length; i++) {
+    const d = top10[i];
+    total += d.score;
+    oreRate += 1 / d.sec;
+    survived += d.surv / d.sec;
+  }
+
+  const res = { 
+    cashPerSec: total, 
+    efficiency: oreRate > 0 ? (survived / oreRate) * 100 : 0, 
+    top10, 
+    chain 
+  };
+  
+  if (evalCache.size > 200000) evalCache.clear();
+  evalCache.set(key, res);
+  return res;
+}
+
+// optimizer section
+
+function chainValue(idx) {
+  return inventory[idx].effectiveMult * UPGRADERS[inventory[idx].baseIndex].mult;
+}
+
+function packSorted(chain) {
+  const filled = chain.filter(x => x >= 0).sort((a, b) => chainValue(b) - chainValue(a));
+  const out = new Array(NSLOTS).fill(-1);
+  for (let i = 0; i < filled.length; i++) {
+    out[i] = filled[i];
+  }
+  return out;
+}
+
+function start() {
+  if (!inventory.length) return alert('Please add items to your inventory first');
+
+  chainCounts = new Int8Array(inventory.length + 100);
+  const life = Math.min(MAX_LIFE_BONUS, Math.max(0, parseFloat(lifeBonus.value) || 0));
+  lifeBonus.value = life;
+  lifeLimit = BASE_LIFE * (1 + life / 100);
+  
+  const income = Math.min(MAX_INCOME_BONUS, Math.max(0, parseFloat(incomeBonus.value) || 0));
+  incomeBonus.value = income;
+  incomeMult = 1 + income / 100;
+  
+  const top3 = inventory
+    .filter(i => i.type === 'refinery')
+    .map(i => i.mb)
+    .sort((a, b) => b - a)
+    .slice(0, 3);
+  refineryMult = 1 + top3.reduce((a, b) => a + b, 0);
+  
+  evalCache = new Map();
+  running = true;
+  iterations = 0;
+  
+  startBtn.style.display = 'none';
+  stopBtn.style.display = 'block';
+
+  const pool = [];
+  for (let idx = 0; idx < inventory.length; idx++) {
+    const item = inventory[idx];
+    if (item.type === 'upgrader') {
+      for (let i = 0; i < item.quantity; i++) {
+        pool.push(idx);
+      }
+    }
+  }
+
+  let current = new Array(NSLOTS).fill(-1);
+  for (let i = 0; i < Math.min(pool.length, NSLOTS); i++) {
+    current[i] = pool[i];
+  }
+  
+  let currentRes = evaluateChain(current);
+  bestResult = currentRes;
+  bestChain = current.slice();
+  bestCash = currentRes.cashPerSec;
+  showResult(currentRes);
+  
+  let temp = 0.5;
+
+  uiUpdateInterval = setInterval(() => {
+    if (running && bestResult) {
+      showResult(bestResult);
+    }
+  }, 50);
+
+  function step() {
+    if (!running) return;
+
+    for (let n = 0; n < 500; n++) {
+      const roll = Math.floor(Math.random() * 7);
+      let cand = current.slice();
+
+      if (roll === 0) {
+        const sl = Math.floor(Math.random() * NSLOTS);
+        if (cand[sl] >= 0 && pool.length) {
+          cand[sl] = pool[Math.floor(Math.random() * pool.length)];
+        }
+      } else if (roll === 1) {
+        const a = Math.floor(Math.random() * NSLOTS);
+        const b = Math.floor(Math.random() * NSLOTS);
+        const tmp = cand[a];
+        cand[a] = cand[b];
+        cand[b] = tmp;
+      } else if (roll === 2) {
+        const a = Math.floor(Math.random() * NSLOTS);
+        const b = Math.floor(Math.random() * NSLOTS);
+        if (cand[a] >= 0 && cand[b] < 0) {
+          cand[b] = cand[a];
+          cand[a] = -1;
+        }
+      } else if (roll === 3) {
+        cand = packSorted(cand);
+      } else if (roll === 4) {
+        if (pool.length) {
+          cand[Math.floor(Math.random() * NSLOTS)] = pool[Math.floor(Math.random() * pool.length)];
+          cand = packSorted(cand);
+        }
+      } else if (roll === 5) {
+        const empty = [];
+        for (let i = 0; i < NSLOTS; i++) {
+          if (cand[i] < 0) empty.push(i);
+        }
+        if (empty.length && pool.length) {
+          cand[empty[Math.floor(Math.random() * empty.length)]] = pool[Math.floor(Math.random() * pool.length)];
+        }
+      } else if (roll === 6) {
+        const itemsWithConds = [];
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i].type === 'upgrader') {
+            const u = UPGRADERS[inventory[i].baseIndex];
+            if (u.conds.length > 0) {
+              itemsWithConds.push(i);
+            }
+          }
+        }
+        
+        if (itemsWithConds.length && pool.length) {
+          const targetIdx = itemsWithConds[Math.floor(Math.random() * itemsWithConds.length)];
+          const targetUpg = UPGRADERS[inventory[targetIdx].baseIndex];
+          const neededTraits = targetUpg.conds.map(c => c.t);
+          
+          const providers = [];
+          for (let i = 0; i < pool.length; i++) {
+            const u = UPGRADERS[inventory[pool[i]].baseIndex];
+            if (u.adds.some(a => neededTraits.includes(a.t))) {
+              providers.push(pool[i]);
+            }
+          }
+          
+          if (providers.length) {
+            const sl = Math.floor(Math.random() * NSLOTS);
+            cand[sl] = targetIdx;
+            for (let i = 0; i < Math.min(2, providers.length); i++) {
+              const emptySlot = cand.indexOf(-1);
+              if (emptySlot >= 0) {
+                cand[emptySlot] = providers[Math.floor(Math.random() * providers.length)];
+              }
+            }
+          }
+        }
+      }
+
+      if (!isValidChain(cand)) continue;
+
+      const res = evaluateChain(cand);
+      const delta = res.cashPerSec - currentRes.cashPerSec;
+      
+      if (delta >= 0 || Math.random() < Math.exp(delta / (temp * (Math.abs(currentRes.cashPerSec) + 1e-9)))) {
+        current = cand;
+        currentRes = res;
+      }
+      
+      iterations++;
+
+      if (res.cashPerSec > bestCash) {
+        bestCash = res.cashPerSec;
+        bestResult = res;
+        bestChain = cand.slice();
+      }
+    }
+
+    temp *= 0.9999;
+    if (temp < 0.01) temp = 0.3;
+
+    if (Math.random() < 0.05 && bestCash > currentRes.cashPerSec) {
+      current = bestChain.slice();
+      currentRes = evaluateChain(current);
+    }
+    
+    setTimeout(step, 10);
+  }
+  
+  step();
+}
+
+function stop() {
+  running = false;
+  clearInterval(uiUpdateInterval);
+  startBtn.style.display = 'block';
+  stopBtn.style.display = 'none';
+  if (bestResult) showResult(bestResult);
+}
+
+function showResult(r) {
+  let out = `Current best build (iterations: ${iterations})\n\n`;
+  out += `Estimated cash/s: ${formatNumber(r.cashPerSec)}\n`;
+  out += `Ore efficiency: ${r.efficiency.toFixed(1)}%\n\nDroppers:\n`;
+  
+  for (let i = 0; i < r.top10.length; i++) {
+    const d = r.top10[i];
+    out += `  ${d.drop.name} ${d.drop.modString} ${formatNumber(d.score)}/s\n`;
+  }
+  for (let i = r.top10.length; i < 10; i++) {
+    out += `  [Empty]\n`;
+  }
+
+  const procs = [];
+  for (let i = 0; i < r.top10.length; i++) {
+    const d = r.top10[i];
+    const label = `${d.proc.name} ${d.proc.modString}`.trim();
+    if (!procs.includes(label)) procs.push(label);
+  }
+  
+  if (procs.length) {
+    out += `\nProcessor:\n`;
+    for (let i = 0; i < procs.length; i++) {
+      out += `  ${procs[i]}\n`;
+    }
+  }
+
+  out += "\nUpgraders:\n";
+  let last = r.chain.length;
+  while (last > 0 && r.chain[last - 1] < 0) last--;
+  
+  for (let i = 0; i < last; i++) {
+    const ui = r.chain[i];
+    out += ui >= 0 ? `${i + 1}. ${inventory[ui].name} ${inventory[ui].modString}\n` : `${i + 1}. -\n`;
+  }
+
+  const refs = [];
+  const sortedRefs = inventory
+    .filter(i => i.type === 'refinery')
+    .sort((a, b) => b.mb - a.mb);
+    
+  for (let i = 0; i < sortedRefs.length; i++) {
+    const rf = sortedRefs[i];
+    for (let j = 0; j < rf.quantity && refs.length < 3; j++) {
+      refs.push(rf.name);
+    }
+  }
+    
+  if (refs.length) {
+    out += `\nRefineries: ${refs.join(", ")}\n`;
+  }
+
+  results.textContent = out;
+}
+
+function formatNumber(n) {
+  if (n === 0) return "0";
+  if (n < 1000) return n.toFixed(2);
+  
+  let i = 0;
+  while (n >= 1000 && i < SUFFIXES.length - 1) {
+    n /= 1000;
+    i++;
+  }
+  return n.toFixed(2) + SUFFIXES[i];
+}
+
+// inventory ui section
+
+function modMult(op, n, h) {
+  return (op ? 2 : 1) * (n ? 3.5 : 1) * (h ? 6 : 1);
+}
+
+function modString(op, n, h) {
+  const m = [];
+  if (op) m.push("OP");
+  if (n) m.push("N");
+  if (h) m.push("H");
+  return m.length ? "[" + m.join(" ") + "]" : "";
+}
+
+function makeItem(type, baseIndex, op, n, h) {
+  const base = CATEGORIES[type][baseIndex];
+  if (type === 'refinery') {
+    return { name: base.name, type, baseIndex, mb: base.mb };
+  }
+  
+  const mm = modMult(op, n, h);
+  return {
+    name: base.name, 
+    type, 
+    baseIndex, 
+    isOP: op, 
+    isN: n, 
+    isH: h,
+    effectiveMult: type === 'dropper' ? mm : base.mult * mm,
+    modString: modString(op, n, h)
+  };
+}
+
+function pushItem(item, quantity) {
+  const same = inventory.find(i => 
+    i.name === item.name && 
+    i.type === item.type &&
+    (item.type === 'refinery' || (i.isOP === item.isOP && i.isN === item.isN && i.isH === item.isH))
+  );
+  
+  if (same) {
+    same.quantity += quantity;
+  } else {
+    inventory.push({ id: Date.now() + Math.random(), quantity, ...item });
+  }
+}
+
+function init() {
+  const sel = document.getElementById('itemSelect');
+  const groups = [
+    ["Droppers", "dropper"], 
+    ["Upgraders", "upgrader"], 
+    ["Processors", "processor"], 
+    ["Refineries", "refinery"]
+  ];
+  
+  for (let gIdx = 0; gIdx < groups.length; gIdx++) {
+    const label = groups[gIdx][0];
+    const type = groups[gIdx][1];
+    const g = document.createElement('optgroup');
+    g.label = label;
+    
+    const mapped = [];
+    for (let i = 0; i < CATEGORIES[type].length; i++) {
+      mapped.push({ it: CATEGORIES[type][i], i: i });
+    }
+    mapped.sort((a, b) => a.it.odds - b.it.odds);
+    
+    for (let mIdx = 0; mIdx < mapped.length; mIdx++) {
+      const { it, i } = mapped[mIdx];
+      const o = document.createElement('option');
+      o.value = type + ':' + i;
+      o.textContent = it.name;
+      g.appendChild(o);
+    }
+      
+    sel.appendChild(g);
+  }
+}
+
+function addItem() {
+  const parts = itemSelect.value.split(':');
+  const type = parts[0];
+  const idx = parseInt(parts[1], 10);
+  const quantity = parseInt(itemQuantity.value) || 1;
+  pushItem(makeItem(type, idx, modOP.checked, modN.checked, modH.checked), quantity);
+  renderInventory();
+  
+  itemQuantity.value = 1;
+  modOP.checked = false;
+  modN.checked = false;
+  modH.checked = false;
+}
+
+function removeItem(id) {
+  inventory = inventory.filter(i => i.id !== id);
+  renderInventory();
+}
+
+function renderInventory() {
+  const list = document.getElementById('inventoryList');
+  if (!inventory.length) {
+    list.innerHTML = '<div class="empty">No items in inventory. Add items above.</div>';
+    return;
+  }
+
+  const order = { dropper: 0, upgrader: 1, processor: 2, refinery: 3 };
+  const rate = i => DROPPERS[i.baseIndex].cash / DROPPERS[i.baseIndex].sec * i.effectiveMult;
+  
+  const sorted = inventory.slice().sort((a, b) => {
+    if (a.type !== b.type) return order[a.type] - order[b.type];
+    if (a.type === 'dropper') return rate(b) - rate(a);
+    if (a.type === 'refinery') return b.mb - a.mb;
+    return b.effectiveMult - a.effectiveMult;
+  });
+
+  let html = '';
+  for (let i = 0; i < sorted.length; i++) {
+    const item = sorted[i];
+    let d = '';
+    if (item.type === 'upgrader') {
+      d = `${item.modString} (x${item.effectiveMult.toFixed(2)} Multi)`;
+    } else if (item.type === 'dropper') {
+      d = `${item.modString} ${DROPPERS[item.baseIndex].cash} Cash / ${DROPPERS[item.baseIndex].sec}s`;
+    } else if (item.type === 'processor') {
+      d = `${item.modString} x${item.effectiveMult.toFixed(1)} Multi`;
+    } else {
+      d = `+${(item.mb * 100).toFixed(0)}% Income Bonus`;
+    }
+    
+    html += `
+      <div class="item">
+        <div class="info">
+          <div>${item.name}</div>
+          <div class="type">${item.type}</div>
+          <div class="mod">${d}</div>
+        </div>
+        <div class="quantity">Quantity: ${item.quantity}</div>
+        <button class="red small" onclick="removeItem(${item.id})">Remove</button>
+      </div>
+    `;
+  }
+  list.innerHTML = html;
+}
+
+function exportInv() {
+  const lines = [];
+  for (let i = 0; i < inventory.length; i++) {
+    const item = inventory[i];
+    const p = [item.name];
+    if (item.type !== 'refinery') { 
+      if (item.isOP) p.push('OP'); 
+      if (item.isN) p.push('N'); 
+      if (item.isH) p.push('H'); 
+    }
+    p.push(item.quantity);
+    lines.push(p.join('|'));
+  }
+  
+  lines.push(`Ore Lifetime|${lifeBonus.value}%`);
+  lines.push(`Income|${incomeBonus.value}%`);
+  ioText.value = lines.join('\n');
+}
+
+function importInv() {
+  const text = ioText.value.trim();
+  if (!text) return alert('Please paste inventory data first');
+
+  inventory = [];
+  const lines = text.split('\n');
+  
+  for (let lIdx = 0; lIdx < lines.length; lIdx++) {
+    const line = lines[lIdx];
+    const parts = line.trim().split('|').map(p => p.trim());
+    if (parts.length < 2) continue;
+
+    const name = parts[0];
+    if (name === 'Ore Lifetime') { 
+      lifeBonus.value = parseInt(parts[1], 10) || 0; 
+      continue; 
+    }
+    if (name === 'Income') { 
+      incomeBonus.value = parseInt(parts[1], 10) || 0; 
+      continue; 
+    }
+
+    const quantity = parseInt(parts[parts.length - 1], 10) || 1;
+    const mods = parts.slice(1, -1);
+
+    let type = null;
+    let idx = -1;
+    
+    for (const t in CATEGORIES) {
+      idx = CATEGORIES[t].findIndex(x => x.name === name);
+      if (idx >= 0) { 
+        type = t; 
+        break; 
+      }
+    }
+    
+    if (!type) continue;
+    
+    pushItem(
+      makeItem(type, idx, mods.includes('OP'), mods.includes('N'), mods.includes('H')), 
+      quantity
+    );
+  }
+  
+  renderInventory();
+}
+
+init();
+</script>
+</body>
+</html>
