@@ -441,7 +441,10 @@ function simulate(d, chain) {
     const item = inventory[ui], u = UPGRADERS[item.baseIndex], slot = sl + 1;
     const pf = tr[FIRE], pa = tr[ACID], pn = tr[NUC];
 
-    mult *= item.effectiveMult * condMult(u.conds, tr);
+    const isLab = u.flag === 'nuclab';
+
+    mult *= item.effectiveMult;
+    if (!isLab) mult *= condMult(u.conds, tr);
 
     if (u.rmAll) tr.fill(0);
     else for (let k = 0; k < u.rm.length; k++) tr[u.rm[k]] = 0;
@@ -501,6 +504,7 @@ function simulate(d, chain) {
       }
     }
     if (u.flag === 'deathw') vwet = true;
+    if (isLab) mult *= condMult(u.conds, tr);
 
     const tCheck = [FIRE, ACID, NUC];
     const prev = [pf, pa, pn];
@@ -509,7 +513,7 @@ function simulate(d, chain) {
       if (prev[i] > 0 && now === 0) {
         let start = (i === 0) ? cf : (i === 1) ? ca : cn;
         if (start >= 0) {
-          const exposure = slotPos[18] - slotPos[start];
+          const exposure = slotPos[slot] - slotPos[start];
           if (exposure > lifeLimit) { alive = false; dprob = 1; }
         }
         if (i === 0) cf = -1; else if (i === 1) ca = -1; else cn = -1;
@@ -647,11 +651,12 @@ function start() {
   incomeBonus.value = income;
   incomeMult = 1 + income / 100;
   
-  const top3 = inventory
-    .filter(i => i.type === 'refinery')
-    .map(i => i.mb)
-    .sort((a, b) => b - a)
-    .slice(0, 3);
+  const refUnits = [];
+  for (const i of inventory) {
+    if (i.type !== 'refinery') continue;
+    for (let k = 0; k < i.quantity; k++) refUnits.push(i.mb);
+  }
+  const top3 = refUnits.sort((a, b) => b - a).slice(0, 3);
   refineryMult = 1 + top3.reduce((a, b) => a + b, 0);
   
   evalCache = new Map();
@@ -690,11 +695,11 @@ function start() {
     }
   }, 50);
 
-  function step() {
+    function step() {
     if (!running) return;
 
     for (let n = 0; n < 500; n++) {
-      const roll = Math.floor(Math.random() * 7);
+      const roll = Math.floor(Math.random() * 8);
       let cand = current.slice();
 
       if (roll === 0) {
@@ -764,6 +769,11 @@ function start() {
               }
             }
           }
+        }
+      } else if (roll === 7) {
+        const sl = Math.floor(Math.random() * NSLOTS);
+        if (cand[sl] >= 0) {
+          cand[sl] = -1;
         }
       }
 
